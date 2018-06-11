@@ -1,7 +1,7 @@
 package chain.utils;
 
 
-import java.util.Set;
+import java.util.Collection;
 
 public class Utils {
 
@@ -21,7 +21,7 @@ public class Utils {
         return result;
     }
 
-    public static boolean isInDictionary(Set<String> dictionary, String word) {
+    public static boolean isInDictionary(Collection<String> dictionary, String word) {
         return dictionary.contains(word);
     }
 

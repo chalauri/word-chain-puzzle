@@ -1,89 +1,103 @@
 package chain.utils;
 
 import java.util.*;
-import java.util.stream.Collectors;
-
-import static chain.utils.Utils.distance;
-import static chain.utils.Utils.isInDictionary;
 
 public class ChainMaker {
 
     public static final String ALPHABET = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ";
 
-    /*
-    This algorithm works in case-sensitive manner.
-     */
-    public static List<String> create(String source, String target, Set<String> dictionary) {
+    public List<String> getShortestChain(String source, String destination, Set<String> dictionary) {
 
-        if (!isInDictionary(dictionary, source) || !isInDictionary(dictionary, target)) {
+        if (dictionary.isEmpty()) {
             return Collections.emptyList();
         }
 
-        List<String> candidates = new ArrayList<>();
-        candidates.add(source);
-
-        List<String> visited = new ArrayList<>();
-        visited.add(source);
-
-        List<String> chain = new ArrayList<>();
-
-        Iterator<String> candidateIterator = candidates.iterator();
-        while (candidateIterator.hasNext()) {
-            String lastCandidate = candidates.remove(candidates.size() - 1);
-            chain.add(lastCandidate);
-            candidateIterator = candidates.iterator();
-            if (lastCandidate.equals(target)) {
-                return chain;
-            }
-
-            List<String> viableCandidates = getViableCandidatesForNextNode(
-                    getAllCandidatesForNextNode(lastCandidate, target, dictionary),
-                    target, distance(lastCandidate, target),
-                    candidates, visited);
-
-            if (viableCandidates.isEmpty()) {
-                chain.remove(chain.size() - 1);
-            } else {
-                candidates.addAll(viableCandidates);
-                visited.addAll(viableCandidates);
-            }
+        if (!dictionary.contains(source) || !dictionary.contains(destination)) {
+            return Collections.emptyList();
         }
 
-        return new ArrayList<>();
+        List<List<String>> allChains = getAllChains(source, destination, dictionary);
+
+        Optional<List<String>> shortestChainOptional = allChains.stream().sorted(Comparator.comparing(List::size)).findFirst();
+
+        return shortestChainOptional.orElse(Collections.emptyList());
     }
 
-    private static List<String> getViableCandidatesForNextNode(Collection<String> candidates, String target,
-                                                               int distanceToTarget,
-                                                               Collection<String> chain,
-                                                               Collection<String> visited) {
+    public List<List<String>> getAllChains(String source, String destination, Set<String> dictionary) {
+        List<List<String>> allChains = new ArrayList<>();
+        HashMap<String, ArrayList<String>> neighbours = new HashMap<>();
+        HashMap<String, Integer> distance = new HashMap<>();
+        ArrayList<String> solution = new ArrayList<>();
 
-        return candidates.stream()
-                .filter(candidate -> !visited.contains(candidate))
-                .filter(candidate -> !chain.contains(candidate))
-                .filter(candidate -> {
-                    int distance = distance(candidate, target);
-                    return distance <= distanceToTarget;
-                }).sorted((candidate1, candidate2) -> {
-                    int candidateFirstDistance = distance(candidate1, target);
-                    int candidateSecondDistance = distance(candidate2, target);
-                    return Integer.compare(candidateSecondDistance, candidateFirstDistance);
-                }).collect(Collectors.toList());
+        initializeNextLinksForWordAndDistanceFromSource(source, destination, dictionary, neighbours, distance);
+        findAllChainsForWord(source, destination, neighbours, distance, solution, allChains);
+
+        return allChains;
     }
 
-    private static Set<String> getAllCandidatesForNextNode(String source, String target, Set<String> dictionary) {
-        Set<String> candidates = new HashSet<>();
-        for (int index = 0; index < source.length(); index++) {
-            if (source.charAt(index) != target.charAt(index)) {
-                for (int letter = 0; letter < ALPHABET.length(); letter++) {
-                    StringBuilder builder = new StringBuilder(source);
-                    builder.setCharAt(index, ALPHABET.charAt(letter));
-                    if (isInDictionary(dictionary, builder.toString())) {
-                        candidates.add(builder.toString());
+    private void initializeNextLinksForWordAndDistanceFromSource(String source, String target, Set<String> dictionary,
+                                                                 HashMap<String, ArrayList<String>> neighbours,
+                                                                 HashMap<String, Integer> distance) {
+
+        dictionary.forEach(word -> neighbours.put(word, new ArrayList<>()));
+
+        Queue<String> queue = new LinkedList<>();
+        queue.offer(source);
+        distance.put(source, 0); // distance from source to source is 0
+        while (!queue.isEmpty()) {
+            int count = queue.size();
+            boolean foundDestination = false;
+
+            for (int i = 0; i < count; i++) {
+                String firstWordFromQueue = queue.poll();
+                ArrayList<String> currentNeighbours = getNeighbours(firstWordFromQueue, dictionary);
+
+                for (String neighbour : currentNeighbours) {
+                    neighbours.get(firstWordFromQueue).add(neighbour);
+                    if (!distance.containsKey(neighbour)) {
+                        distance.put(neighbour, distance.get(firstWordFromQueue) + 1);
+                        if (target.equals(neighbour)) {
+                            foundDestination = true;
+                        } else {
+                            queue.offer(neighbour);
+                        }
                     }
                 }
             }
+            if (foundDestination) break;
         }
 
-        return candidates;
     }
+
+    private void findAllChainsForWord(String currentWord, String destination, HashMap<String, ArrayList<String>> neighbours,
+                                      HashMap<String, Integer> distance, ArrayList<String> chain, List<List<String>> result) {
+        chain.add(currentWord);
+        if (currentWord.equals(destination)) {
+            // Recursion stop condition
+            result.add(new ArrayList<>(chain));
+        } else {
+            for (String next : neighbours.get(currentWord)) {
+                if (distance.get(next) == distance.get(currentWord) + 1)
+                    findAllChainsForWord(next, destination, neighbours, distance, chain, result);
+            }
+        }
+        chain.remove(chain.size() - 1);
+    }
+
+    private ArrayList<String> getNeighbours(String word, Set<String> dictionary) {
+        ArrayList<String> neighbours = new ArrayList<>();
+        char chars[] = word.toCharArray();
+        for (char letter : ALPHABET.toCharArray()) {
+            for (int i = 0; i < chars.length; i++) {
+                if (chars[i] == letter) continue; // if same letter - change should not perform
+                char oldLetter = chars[i];
+                chars[i] = letter;
+                if (dictionary.contains(String.valueOf(chars)))
+                    neighbours.add(String.valueOf(chars));
+                chars[i] = oldLetter; // reset the char
+            }
+        }
+        return neighbours;
+    }
+
 }

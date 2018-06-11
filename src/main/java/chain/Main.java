@@ -12,7 +12,9 @@ public class Main {
     private static final String DESTINATION = "lead";
 
     public static void main(String[] args) {
+        ChainMaker chainMaker = new ChainMaker();
+        FileReader reader = new FileReader();
 
-        System.out.println(ChainMaker.create(DESTINATION, SOURCE, FileReader.read(DICTIONARY_PATH)));
+        System.out.println(chainMaker.getShortestChain(DESTINATION, SOURCE, reader.read(DICTIONARY_PATH)));
     }
 }
